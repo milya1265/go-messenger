@@ -1,13 +1,13 @@
-package ws
+package messenger
 
 import (
 	"WSChats/pkg/logger"
 	"github.com/gorilla/websocket"
 	"net/http"
 	"sync"
+	"time"
 )
 
-/*
 var (
 
 	// Time allowed to write a message to the peer
@@ -23,9 +23,8 @@ var (
 	pingPeriod = (pongWait * 9) / 10
 
 	defaultBroadcastQueueSize = 10000
-
 )
-*/
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -35,7 +34,8 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type Messenger struct {
+type Manager struct {
+	Errors    chan *error
 	Broadcast chan *Message
 	Quit      chan struct{}
 	Service   Service
@@ -45,8 +45,8 @@ type Messenger struct {
 	logger    *logger.Logger
 }
 
-func NewMessenger(s *Service, l *logger.Logger) *Messenger {
-	return &Messenger{
+func NewManager(s *Service, l *logger.Logger) *Manager {
+	return &Manager{
 		Broadcast: make(chan *Message),
 		Quit:      make(chan struct{}),
 		Service:   *s,
@@ -57,24 +57,56 @@ func NewMessenger(s *Service, l *logger.Logger) *Messenger {
 	}
 }
 
-func (m *Messenger) Run() {
+func (m *Manager) Run() {
 	for {
 		select {
+
 		case cl := <-m.Offline:
 			m.Clients.Delete(cl.UUID)
 			m.logger.Info("Delete connection with user ", cl.Username)
+
 		case cl := <-m.Online:
 			m.Clients.Store(cl.UUID, cl)
 			m.logger.Info("Create connection with user ", cl.Username)
+
 		case message := <-m.Broadcast:
 			message, err := m.Service.NewMessage(message)
 			if err != nil {
 				m.logger.Error(err.Error())
 			}
-			m.logger.Debug("MESSAGE --> sender: ", message.Sender, " receiver: ", message.Receiver, " text: ", message.Text)
-			rec, ok := m.Clients.Load(message.Receiver)
-			if ok {
-				rec.(*Client).Messages <- message
+
+			receivers, err := m.Service.GetChatMembers(message.ChatID)
+			if err != nil {
+				sen, ok := m.Clients.Load(message.Sender)
+				if ok {
+					sen.(*Client).Errors <- &err
+					continue
+				}
+			}
+
+			for _, rec := range receivers {
+				cl, ok := m.Clients.Load(rec)
+				if ok {
+					cl.(*Client).Messages <- message
+				}
+			}
+		}
+	}
+}
+
+func ping(ws *websocket.Conn) {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		ws.Close()
+	}()
+	for {
+		select {
+		case <-ticker.C:
+			ws.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := ws.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+				// Don't use return, it will not trigger the defer function.
+				break
 			}
 		}
 	}

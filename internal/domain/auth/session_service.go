@@ -18,7 +18,7 @@ type service struct {
 func NewService(r *Repository, l *logger.Logger, m *Manager) Service {
 	return &service{
 		repo:       *r,
-		timeout:    time.Duration(2 * time.Second),
+		timeout:    2 * time.Second,
 		logger:     *l,
 		managerJWT: *m,
 	}

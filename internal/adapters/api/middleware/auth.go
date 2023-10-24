@@ -67,7 +67,6 @@ type Middleware interface {
 func (m *middleware) Login(c *gin.Context) {
 	uuid, ok := c.Keys["uuid"].(string)
 	if ok == false {
-		m.logger.Error("А где ключ блин?")
 		return
 	}
 

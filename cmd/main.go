@@ -4,8 +4,8 @@ import (
 	middleware1 "WSChats/internal/adapters/api/middleware"
 	rout "WSChats/internal/adapters/router"
 	"WSChats/internal/domain/auth"
+	"WSChats/internal/domain/messenger"
 	user2 "WSChats/internal/domain/user"
-	"WSChats/internal/domain/ws"
 	"WSChats/pkg/PostgreSQL"
 	"WSChats/pkg/logger"
 	"time"
@@ -22,17 +22,17 @@ func main() {
 		logger.Logger.Error(err.Error())
 		return
 	}
-	jwtManager, err := auth.NewManager(JWTkey, time.Hour*24, time.Minute*600)
+	jwtManager, err := auth.NewManager(JWTkey, time.Hour*10000, time.Hour*10000)
 	if err != nil {
 		logger.Fatalf(err.Error())
 	}
 
-	wsRepo := ws.NewRepository(db.DB, &logger)
-	wsService := ws.NewService(&wsRepo, &logger)
-	messenger := ws.NewMessenger(&wsService, &logger)
-	go messenger.Run()
-	wsHandler := ws.NewHandler(&wsService, &logger, messenger)
-	//wsHandler := ws.NewHandler(&wsService, &logger)
+	wsRepo := messenger.NewRepository(db.DB, &logger)
+	wsService := messenger.NewService(&wsRepo, &logger)
+	manager := messenger.NewManager(&wsService, &logger)
+	go manager.Run()
+	wsHandler := messenger.NewHandler(&wsService, &logger, manager)
+	//wsHandler := messenger.NewHandler(&wsService, &logger)
 
 	authRepo := auth.NewRepository(db.DB, &logger)
 	authService := auth.NewService(&authRepo, &logger, jwtManager)

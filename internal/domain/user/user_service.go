@@ -91,6 +91,7 @@ func (s *service) Login(ctx context.Context, req *DTO.GetUserByEmailReq) (*DTO.G
 func (s *service) UpdateUser() {
 
 }
+
 func (s *service) DeleteUser() {
 
 }

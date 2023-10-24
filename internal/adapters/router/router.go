@@ -2,8 +2,8 @@ package router
 
 import (
 	"WSChats/internal/adapters/api/middleware"
+	"WSChats/internal/domain/messenger"
 	user "WSChats/internal/domain/user"
-	"WSChats/internal/domain/ws"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,20 +15,21 @@ func NewRouter() *Router {
 	return &Router{Router: gin.Default()}
 }
 
-func (r *Router) InitRoutes(auth auth.Middleware, userHandler user.Handler, wsHandler ws.Handler) {
+func (r *Router) InitRoutes(auth auth.Middleware, userHandler user.Handler, wsHandler messenger.Handler) {
 
 	r.Router.Group("")
 
 	{
 		r.Router.POST("/register", userHandler.Register)
 		r.Router.GET("/login", userHandler.Login, auth.Login)
-		r.Router.GET("/ws/messenger", auth.Authorize, wsHandler.Messenger)
+		r.Router.GET("/ws/messenger", auth.Authorize, wsHandler.NewClient)
 		r.Router.PUT("/user/:uuid", auth.Authorize, userHandler.UpdateUser)
+		r.Router.POST("/chat", auth.Authorize, wsHandler.NewChat)
 		//authorize := r.Router.Group("")
 		//authorize.Use(auth.Authorize)
 		//{
 		//
-		//r.Router.PUT("/user/:uuid", userHandler.UpdateUser)
+		//r.Rout	er.PUT("/user/:uuid", userHandler.UpdateUser)
 		//r.Router.DELETE("/user/:uuid")
 		//}
 	}
