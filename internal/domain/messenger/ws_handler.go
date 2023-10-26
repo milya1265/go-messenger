@@ -131,60 +131,45 @@ func (c *Client) handleReadMessage(mapJSON map[string]json.RawMessage) (*ReadMes
 		LastReadMsg: msg,
 	}
 
-	err := c.service.SaveLastRead(readMessage)
+	err := c.service.SaveReadStatus(readMessage)
 	if err != nil {
-		c.logger.Error(err.Error())
 		return nil, err
 	}
 
 	return readMessage, nil
 }
 
-/*
-func (c *Client) handleNewChat(mapJSON map[string]json.RawMessage) (*NewChatReq, error) {
-	creatorJSON, ok1 := mapJSON["creator"]
-	titleJSON, ok2 := mapJSON["title"]
-	isDirectJSON, ok3 := mapJSON["is_direct"]
-	var creator string
-	var title string
-	var isDirect bool
-	if ok1 && ok2 && ok3 {
-		err := json.Unmarshal(creatorJSON, &creator)
+func (c *Client) handleGetChatMessages(mapJSON map[string]json.RawMessage) ([]*Message, error) {
+	var limit int
+	var offset int
+	var chatID int
+
+	limitJSON, ok := mapJSON["limit"]
+	if ok {
+		err := json.Unmarshal(limitJSON, &limit)
 		if err != nil {
-			c.logger.Error("unmarshal creator method ", err.Error())
+			c.logger.Error("unmarshal limit method ", err.Error())
 			return nil, err
 		}
-
-		err = json.Unmarshal(titleJSON, &title)
+	}
+	offsetJSON, ok := mapJSON["offset"]
+	if ok {
+		err := json.Unmarshal(offsetJSON, &offset)
 		if err != nil {
-			c.logger.Error("unmarshal title method ", err.Error())
+			c.logger.Error("unmarshal offset method ", err.Error())
 			return nil, err
 		}
-
-		err = json.Unmarshal(isDirectJSON, &isDirect)
+	}
+	chatIdJSON, ok := mapJSON["chat_id"]
+	if ok {
+		err := json.Unmarshal(chatIdJSON, &chatID)
 		if err != nil {
-			c.logger.Error("unmarshal is_direct method ", err.Error())
+			c.logger.Error("unmarshal chat_id method ", err.Error())
 			return nil, err
 		}
-	} else {
-		return nil, errors.New("bad request")
 	}
 
-	membersJSON := mapJSON["members"]
-	var members []string
+	userID := c.UUID
 
-	err := json.Unmarshal(membersJSON, &members)
-	if err != nil {
-		log.Println("unmarshal method client 177 ", err.Error())
-		return nil, err
-	}
-
-	ch := NewChatReq{
-		Creator:  creator,
-		Title:    title,
-		IsDirect: isDirect,
-		Members:  members,
-	}
-	return &ch, nil
+	return c.service.GetChatMessages(chatID, limit, offset, userID)
 }
-*/

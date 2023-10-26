@@ -50,9 +50,15 @@ func (h *handler) NewClient(c *gin.Context) {
 		return
 	}
 
-	conn.SetReadDeadline(time.Now().Add(pongWait))
+	err = conn.SetReadDeadline(time.Now().Add(pongWait))
+	if err != nil {
+		return
+	}
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(pongWait))
+		err := conn.SetReadDeadline(time.Now().Add(pongWait))
+		if err != nil {
+			return err
+		}
 		return nil
 	})
 	go ping(conn)

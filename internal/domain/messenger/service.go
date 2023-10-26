@@ -27,7 +27,8 @@ type Service interface {
 	GetUsernameByUUID(uuid string) (string, error)
 	NewChat(chat *NewChatReq) (*NewChatRes, error)
 	GetChatMembers(chatID int) ([]string, error)
-	SaveLastRead(message *ReadMessage) error
+	SaveReadStatus(message *ReadMessage) error
+	GetChatMessages(chatID, limit, offset int, userID string) ([]*Message, error)
 }
 
 func (s *service) NewMessage(message *Message) (*Message, error) {
@@ -110,10 +111,38 @@ func (s *service) GetChatMembers(chatID int) ([]string, error) {
 	return s.repo.GetChatMembers(c, chatID)
 }
 
-func (s *service) SaveLastRead(message *ReadMessage) error {
+func (s *service) SaveReadStatus(message *ReadMessage) error {
 	c, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
 
-	return s.repo.StoreLastRead(c, message)
+	err := s.repo.CheckReadStatus(c, message)
 
+	if err != nil {
+		if errors.Is(err, errors.New("read status not found in this chat")) {
+			return s.repo.StoreReadStatus(c, message)
+		}
+		s.logger.Error(err)
+		return err
+	}
+
+	return s.repo.UpdateReadStatus(c, message)
+}
+
+func (s *service) GetChatMessages(chatID, limit, offset int, userID string) ([]*Message, error) {
+	c, cancel := context.WithTimeout(context.Background(), s.timeout)
+	defer cancel()
+
+	err := s.repo.CheckChatMember(c, chatID, userID)
+	if err != nil {
+		s.logger.Error(err)
+		return nil, err
+	}
+
+	messages, err := s.repo.GetChatMessages(c, chatID, limit, offset)
+	if err != nil {
+		s.logger.Error(err)
+		return nil, err
+	}
+
+	return messages, nil
 }

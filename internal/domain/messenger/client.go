@@ -7,12 +7,11 @@ import (
 )
 
 const (
-	SendMessageMethod = "send_message"
-	CreateChatMethod  = "new_chat"
-	ReadMessageMethod = "read_message"
-	GetMessagesMethod = "get_messages"
-
-	ChatHasBeenCreated = "chat has been created succeed"
+	SendMessageMethod   = "send_message"
+	CreateChatMethod    = "new_chat"
+	ReadMessageMethod   = "read_message"
+	GetMessagesMethod   = "get_messages"
+	DeleteMessageMethod = "delete_message"
 )
 
 type Client struct {
@@ -113,10 +112,25 @@ func (c *Client) HandleReq(manager *Manager) {
 			readMsg, err := c.handleReadMessage(mapJSON)
 			if err != nil {
 				c.Errors <- &err
+				continue
 			}
 			manager.BroadcastReadMsg <- readMsg
 		case GetMessagesMethod:
 			c.logger.Info(GetMessagesMethod)
+
+			messages, err := c.handleGetChatMessages(mapJSON)
+			if err != nil {
+				c.Errors <- &err
+				continue
+			}
+			response, err := json.Marshal(messages)
+			if err != nil {
+				c.Errors <- &err
+				continue
+			}
+
+			c.Events <- &response
+
 		case CreateChatMethod:
 			c.logger.Info(CreateChatMethod)
 
@@ -126,15 +140,11 @@ func (c *Client) HandleReq(manager *Manager) {
 				continue
 			}
 
-			c.logger.Debug("chatik", newChat)
-
 			response, err := json.Marshal(newChat)
 			if err != nil {
 				c.Errors <- &err
 				continue
 			}
-
-			c.logger.Debug(string(response))
 
 			c.Events <- &response
 		}
