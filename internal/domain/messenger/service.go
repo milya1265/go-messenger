@@ -27,11 +27,18 @@ type Service interface {
 	GetUsernameByUUID(uuid string) (string, error)
 	NewChat(chat *NewChatReq) (*NewChatRes, error)
 	GetChatMembers(chatID int) ([]string, error)
+	SaveLastRead(message *ReadMessage) error
 }
 
 func (s *service) NewMessage(message *Message) (*Message, error) {
 	c, cancel := context.WithTimeout(context.Background(), s.timeout)
 	defer cancel()
+
+	if len(message.Text) > 512 {
+		s.logger.Error(errors.New("message too long, max length = 512"))
+		return nil, errors.New("message too long, max length = 512")
+	}
+
 	return s.repo.NewMessage(c, message)
 }
 
@@ -46,6 +53,16 @@ func (s *service) NewChat(chat *NewChatReq) (*NewChatRes, error) {
 	defer cancel()
 
 	members := chat.Members
+
+	if len(members) == 0 {
+		s.logger.Error(errors.New("count of members can't be zero"))
+		return nil, errors.New("count of members can't be zero")
+	}
+
+	if chat.IsDirect == false && chat.Title == "" {
+		s.logger.Error(errors.New("not direct chat must have title"))
+		return nil, errors.New("not direct chat must have title")
+	}
 
 	if chat.IsDirect == true && len(members) != 2 {
 		s.logger.Error(errors.New("direct members must be two"))
@@ -70,11 +87,15 @@ func (s *service) NewChat(chat *NewChatReq) (*NewChatRes, error) {
 		return nil, err
 	}
 
+	s.logger.Debug(res)
+
 	err = s.repo.NewMembers(c, res.Id, members)
 	if err != nil {
 		s.logger.Error(err)
 		return nil, err
 	}
+
+	s.logger.Debug(members)
 
 	res.Members = members
 	res.IsDirect = chat.IsDirect
@@ -87,4 +108,12 @@ func (s *service) GetChatMembers(chatID int) ([]string, error) {
 	defer cancel()
 
 	return s.repo.GetChatMembers(c, chatID)
+}
+
+func (s *service) SaveLastRead(message *ReadMessage) error {
+	c, cancel := context.WithTimeout(context.Background(), s.timeout)
+	defer cancel()
+
+	return s.repo.StoreLastRead(c, message)
+
 }

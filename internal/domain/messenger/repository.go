@@ -25,12 +25,13 @@ type Repository interface {
 	NewMembers(ctx context.Context, chat int, users []string) error
 	GetChatMembers(ctx context.Context, chatID int) ([]string, error)
 	SearchDirectChat(ctx context.Context, member1, member2 string) (int, error)
+	StoreLastRead(ctx context.Context, msg *ReadMessage) error
 }
 
 func (r *repository) NewMessage(ctx context.Context, message *Message) (*Message, error) {
-	query := "INSERT INTO messages (chat_id ,sender_id, text, time) VALUES ($1, $2, $3, $4) RETURNING id;" //RETURNING
+	query := "INSERT INTO messages (chat_id ,sender_id, text, time, reply) VALUES ($1, $2, $3, $4, $5) RETURNING id;" //RETURNING
 
-	row := r.DB.QueryRowContext(ctx, query, message.ChatID, message.Sender, message.Text, message.Time)
+	row := r.DB.QueryRowContext(ctx, query, message.ChatID, message.Sender, message.Text, message.Time, message.Reply)
 
 	var idMes int
 
@@ -123,11 +124,8 @@ func (r *repository) GetChatMembers(ctx context.Context, chatID int) ([]string, 
 			r.logger.Error(err)
 			return nil, err
 		}
-		r.logger.Debug(member)
 		members = append(members, member)
 	}
-
-	r.logger.Debug(members)
 
 	return members, nil
 }
@@ -140,8 +138,21 @@ func (r *repository) SearchDirectChat(ctx context.Context, member1, member2 stri
 
 	err := r.DB.QueryRowContext(ctx, query, member1, member2).Scan(&chat)
 	if err != nil {
+		r.logger.Error(err)
 		return 0, err
 	}
 
 	return chat, nil
+}
+
+func (r *repository) StoreLastRead(ctx context.Context, msg *ReadMessage) error {
+	query := "INSERT INTO read_status (user_id, chat_id, last_read_msg) VALUES ($1, $2, $3);"
+
+	_, err := r.DB.ExecContext(ctx, query, msg.UserID, msg.ChatID, msg.LastReadMsg)
+	if err != nil {
+		r.logger.Error(err)
+		return err
+	}
+
+	return nil
 }

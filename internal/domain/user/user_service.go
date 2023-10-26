@@ -84,7 +84,6 @@ func (s *service) Login(ctx context.Context, req *DTO.GetUserByEmailReq) (*DTO.G
 		Email:    userDb.Email,
 		Username: userDb.Email,
 	}
-	s.logger.Debug("В сервисе всё ок")
 
 	return res, nil
 }

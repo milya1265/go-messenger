@@ -88,8 +88,6 @@ func (h *handler) Login(c *gin.Context) {
 }
 
 func (h *handler) UpdateUser(c *gin.Context) {
-	uuid, ok := c.Keys["uuid"].(string)
-	h.logger.Info(uuid, " ", ok)
 }
 
 func (h *handler) DeleteUser(c *gin.Context) {

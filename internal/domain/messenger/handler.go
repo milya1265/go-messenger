@@ -2,7 +2,6 @@ package messenger
 
 import (
 	"WSChats/pkg/logger"
-	"errors"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"time"
@@ -29,7 +28,7 @@ func NewHandler(s *Service, l *logger.Logger, m *Manager) Handler { // , m *NewC
 
 type Handler interface {
 	NewClient(c *gin.Context)
-	NewChat(c *gin.Context)
+	//NewChat(c *gin.Context)
 }
 
 func (h *handler) NewClient(c *gin.Context) {
@@ -76,7 +75,7 @@ func (h *handler) NewClient(c *gin.Context) {
 
 }
 
-func (h *handler) NewChat(c *gin.Context) {
+/*func (h *handler) NewChat(c *gin.Context) {
 	h.logger.Info("Starting new chat handler")
 
 	var chatReq NewChatReq
@@ -86,8 +85,6 @@ func (h *handler) NewChat(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "bad request"})
 		return
 	}
-
-	h.logger.Debug(chatReq)
 
 	chatReq.Creator = c.Keys["uuid"].(string)
 
@@ -103,4 +100,4 @@ func (h *handler) NewChat(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, chatRes)
-}
+}*/

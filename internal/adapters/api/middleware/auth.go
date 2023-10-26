@@ -94,6 +94,5 @@ func (m *middleware) Authorize(c *gin.Context) {
 
 	c.Header("jwt", access)
 	c.Set("uuid", uuid)
-	m.logger.Info("uuid --->", uuid)
 	c.Next()
 }

@@ -35,25 +35,27 @@ var upgrader = websocket.Upgrader{
 }
 
 type Manager struct {
-	Errors    chan *error
-	Broadcast chan *Message
-	Quit      chan struct{}
-	Service   Service
-	Online    chan *Client
-	Offline   chan *Client
-	Clients   sync.Map
-	logger    *logger.Logger
+	Errors           chan *error
+	Broadcast        chan *Message
+	BroadcastReadMsg chan *ReadMessage
+	Quit             chan struct{}
+	Service          Service
+	Online           chan *Client
+	Offline          chan *Client
+	Clients          sync.Map
+	logger           *logger.Logger
 }
 
 func NewManager(s *Service, l *logger.Logger) *Manager {
 	return &Manager{
-		Broadcast: make(chan *Message),
-		Quit:      make(chan struct{}),
-		Service:   *s,
-		Online:    make(chan *Client),
-		Offline:   make(chan *Client),
-		Clients:   sync.Map{},
-		logger:    l,
+		Broadcast:        make(chan *Message),
+		BroadcastReadMsg: make(chan *ReadMessage),
+		Quit:             make(chan struct{}),
+		Service:          *s,
+		Online:           make(chan *Client),
+		Offline:          make(chan *Client),
+		Clients:          sync.Map{},
+		logger:           l,
 	}
 }
 
@@ -88,6 +90,22 @@ func (m *Manager) Run() {
 				cl, ok := m.Clients.Load(rec)
 				if ok {
 					cl.(*Client).Messages <- message
+				}
+			}
+		case message := <-m.BroadcastReadMsg:
+			receivers, err := m.Service.GetChatMembers(message.ChatID)
+			if err != nil {
+				sen, ok := m.Clients.Load(message.UserID)
+				if ok {
+					sen.(*Client).Errors <- &err
+					continue
+				}
+			}
+
+			for _, rec := range receivers {
+				cl, ok := m.Clients.Load(rec)
+				if ok {
+					cl.(*Client).ReadMessages <- message
 				}
 			}
 		}

@@ -24,7 +24,7 @@ func (r *Router) InitRoutes(auth auth.Middleware, userHandler user.Handler, wsHa
 		r.Router.GET("/login", userHandler.Login, auth.Login)
 		r.Router.GET("/ws/messenger", auth.Authorize, wsHandler.NewClient)
 		r.Router.PUT("/user/:uuid", auth.Authorize, userHandler.UpdateUser)
-		r.Router.POST("/chat", auth.Authorize, wsHandler.NewChat)
+		//r.Router.POST("/chat", auth.Authorize, wsHandler.NewChat)
 		//authorize := r.Router.Group("")
 		//authorize.Use(auth.Authorize)
 		//{

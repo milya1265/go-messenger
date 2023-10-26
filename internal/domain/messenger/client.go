@@ -11,27 +11,33 @@ const (
 	CreateChatMethod  = "new_chat"
 	ReadMessageMethod = "read_message"
 	GetMessagesMethod = "get_messages"
+
+	ChatHasBeenCreated = "chat has been created succeed"
 )
 
 type Client struct {
-	Username string `json:"username"`
-	UUID     string `json:"uuid"`
-	Conn     websocket.Conn
-	Messages chan *Message
-	Errors   chan *error
-	service  Service
-	logger   logger.Logger
+	Username     string `json:"username"`
+	UUID         string `json:"uuid"`
+	Conn         websocket.Conn
+	Events       chan *[]byte
+	Messages     chan *Message
+	ReadMessages chan *ReadMessage
+	Errors       chan *error
+	service      Service
+	logger       logger.Logger
 }
 
 func newClient(username, uuid string, conn *websocket.Conn, logger logger.Logger, s *Service) *Client {
 	return &Client{
-		Username: username,
-		UUID:     uuid,
-		Conn:     *conn,
-		Messages: make(chan *Message),
-		//ReadMessages: make(chan *),
-		logger:  logger,
-		service: *s,
+		Username:     username,
+		UUID:         uuid,
+		Conn:         *conn,
+		Messages:     make(chan *Message),
+		ReadMessages: make(chan *ReadMessage),
+		Events:       make(chan *[]byte),
+		Errors:       make(chan *error),
+		logger:       logger,
+		service:      *s,
 	}
 }
 
@@ -45,8 +51,14 @@ func (c *Client) SendRes() {
 		select {
 		case message := <-c.Messages:
 			c.Conn.WriteJSON(message)
+		case readMessage := <-c.ReadMessages:
+
+			c.Conn.WriteJSON(readMessage)
+		case event := <-c.Events:
+			c.logger.Debug("try to send ", event)
+			c.Conn.WriteMessage(1, *event)
 		case err := <-c.Errors:
-			c.Conn.WriteJSON(err)
+			c.Conn.WriteJSON((*err).Error())
 		}
 	}
 }
@@ -71,12 +83,12 @@ func (c *Client) HandleReq(manager *Manager) {
 		err = json.Unmarshal(p, &mapJSON)
 		if err != nil {
 			c.logger.Error("unmarshal method ", err.Error())
-			break
+			c.Errors <- &err
+			continue
 		}
 
 		methodJSON := mapJSON["method"]
 		var methodString string
-		c.logger.Info("map method", string(methodJSON))
 
 		err = json.Unmarshal(methodJSON, &methodString)
 		if err != nil {
@@ -90,23 +102,41 @@ func (c *Client) HandleReq(manager *Manager) {
 
 			message, err := c.handleNewMessage(mapJSON)
 			if err != nil {
-				c.logger.Error(err.Error())
+				c.Errors <- &err
+				continue
 			}
 
 			manager.Broadcast <- message
 
 		case ReadMessageMethod:
 			c.logger.Info(ReadMessageMethod)
-
+			readMsg, err := c.handleReadMessage(mapJSON)
+			if err != nil {
+				c.Errors <- &err
+			}
+			manager.BroadcastReadMsg <- readMsg
 		case GetMessagesMethod:
 			c.logger.Info(GetMessagesMethod)
+		case CreateChatMethod:
+			c.logger.Info(CreateChatMethod)
 
-		//case CreateChatMethod:
-		//	c.logger.Info(CreateChatMethod)
-		//
-		//	new c.handleNewChat(mapJSON)
-		default:
-			c.logger.Info("error", err)
+			newChat, err := c.handleNewChat(mapJSON)
+			if err != nil {
+				c.Errors <- &err
+				continue
+			}
+
+			c.logger.Debug("chatik", newChat)
+
+			response, err := json.Marshal(newChat)
+			if err != nil {
+				c.Errors <- &err
+				continue
+			}
+
+			c.logger.Debug(string(response))
+
+			c.Events <- &response
 		}
 
 	}
