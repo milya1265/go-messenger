@@ -7,10 +7,6 @@ import (
 	"time"
 )
 
-const (
-	ErrorNotTwoMembersInDirect = "direct members must be two"
-)
-
 type handler struct {
 	service   Service
 	logger    *logger.Logger

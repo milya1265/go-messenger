@@ -173,3 +173,53 @@ func (c *Client) handleGetChatMessages(mapJSON map[string]json.RawMessage) ([]*M
 
 	return c.service.GetChatMessages(chatID, limit, offset, userID)
 }
+
+func (c *Client) handleDeleteMessage(mapJSON map[string]json.RawMessage) error {
+	var messageID int
+
+	messageJSON, ok := mapJSON["message"]
+	if ok {
+		err := json.Unmarshal(messageJSON, &messageID)
+		if err != nil {
+			c.logger.Error("unmarshal message method ", err.Error())
+			return err
+		}
+	}
+
+	err := c.service.DeleteMessage(messageID, c.UUID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) handleEditMessage(mapJSON map[string]json.RawMessage) error {
+	var messageID int
+	var text string
+
+	messageJSON, ok := mapJSON["message"]
+	if ok {
+		err := json.Unmarshal(messageJSON, &messageID)
+		if err != nil {
+			c.logger.Error("unmarshal message method ", err.Error())
+			return err
+		}
+	}
+
+	textJSON, ok := mapJSON["text"]
+	if ok {
+		err := json.Unmarshal(textJSON, &text)
+		if err != nil {
+			c.logger.Error("unmarshal message method ", err.Error())
+			return err
+		}
+	}
+
+	err := c.service.EditMessage(messageID, text, c.UUID)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

@@ -12,6 +12,7 @@ const (
 	ReadMessageMethod   = "read_message"
 	GetMessagesMethod   = "get_messages"
 	DeleteMessageMethod = "delete_message"
+	EditMessageMethod   = "edit_message"
 )
 
 type Client struct {
@@ -147,7 +148,29 @@ func (c *Client) HandleReq(manager *Manager) {
 			}
 
 			c.Events <- &response
-		}
+		case DeleteMessageMethod:
+			c.logger.Info(DeleteMessageMethod)
 
+			if err := c.handleDeleteMessage(mapJSON); err != nil {
+				c.Errors <- &err
+				continue
+			}
+
+			response := []byte("message has been deleted")
+
+			c.Events <- &response
+
+		case EditMessageMethod:
+			c.logger.Info(EditMessageMethod)
+
+			if err := c.handleEditMessage(mapJSON); err != nil {
+				c.Errors <- &err
+				continue
+			}
+
+			response := []byte("message has been edited")
+
+			c.Events <- &response
+		}
 	}
 }

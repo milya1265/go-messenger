@@ -21,16 +21,22 @@ func NewRepository(db *sql.DB, l *logger.Logger) Repository {
 
 type Repository interface {
 	NewMessage(ctx context.Context, message *Message) (*Message, error)
+	DeleteMessage(ctx context.Context, messageID int) error
+	EditTextMessage(ctx context.Context, messageID int, text string) error
+	GetChatMessages(ctx context.Context, chatID, limit int, offset int) ([]*Message, error)
+	CheckAuthorMessage(ctx context.Context, messageID int, userID string) error
+
 	GetUsernameByUUID(ctx context.Context, uuid string) (string, error)
 	NewChat(ctx context.Context, chat *NewChatReq) (*NewChatRes, error)
 	NewMembers(ctx context.Context, chat int, users []string) error
 	GetChatMembers(ctx context.Context, chatID int) ([]string, error)
 	SearchDirectChat(ctx context.Context, member1, member2 string) (int, error)
 	CheckChatMember(ctx context.Context, chatID int, userID string) error
-	GetChatMessages(ctx context.Context, chatID, limit int, offset int) ([]*Message, error)
+
 	StoreReadStatus(ctx context.Context, msg *ReadMessage) error
 	CheckReadStatus(ctx context.Context, msg *ReadMessage) error
 	UpdateReadStatus(ctx context.Context, msg *ReadMessage) error
+	GetMessageByID(ctx context.Context, id int) (*Message, error)
 }
 
 func (r *repository) NewMessage(ctx context.Context, message *Message) (*Message, error) {
@@ -262,4 +268,60 @@ func (r *repository) UpdateReadStatus(ctx context.Context, msg *ReadMessage) err
 	}
 
 	return nil
+}
+
+func (r *repository) DeleteMessage(ctx context.Context, messageID int) error {
+	query := `DELETE FROM messages WHERE id = $1;`
+
+	_, err := r.DB.ExecContext(ctx, query, messageID)
+	if err != nil {
+		r.logger.Error(err)
+		return err
+	}
+
+	return nil
+}
+
+func (r *repository) EditTextMessage(ctx context.Context, messageID int, text string) error {
+	query := `UPDATE messages SET text = $1 WHERE id = $2;`
+
+	_, err := r.DB.ExecContext(ctx, query, text, messageID)
+	if err != nil {
+		r.logger.Error(err)
+		return err
+	}
+
+	return nil
+}
+
+func (r *repository) CheckAuthorMessage(ctx context.Context, messageID int, userID string) error {
+	query := `SELECT (sender_id) FROM messages WHERE id = $1 AND sender_id = $2;`
+
+	_, err := r.DB.ExecContext(ctx, query, messageID, userID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return errors.New("user is not author of message")
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (r *repository) GetMessageByID(ctx context.Context, messageID int) (*Message, error) {
+	query := "SELECT * FROM messages WHERE id = $1;"
+
+	var reply sql.NullInt32
+	msg := &Message{}
+
+	err := r.DB.QueryRowContext(ctx, query, messageID).Scan(
+		&msg.Id, &msg.ChatID, &msg.Sender, &msg.Text, &msg.Time, &reply)
+	if err != nil {
+		r.logger.Error(err)
+		return nil, err
+	}
+
+	msg.Reply = int(reply.Int32)
+
+	return msg, nil
 }

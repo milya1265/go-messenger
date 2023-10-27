@@ -29,6 +29,8 @@ type Service interface {
 	GetChatMembers(chatID int) ([]string, error)
 	SaveReadStatus(message *ReadMessage) error
 	GetChatMessages(chatID, limit, offset int, userID string) ([]*Message, error)
+	DeleteMessage(messageID int, userID string) error
+	EditMessage(messageID int, text, userID string) error
 }
 
 func (s *service) NewMessage(message *Message) (*Message, error) {
@@ -145,4 +147,39 @@ func (s *service) GetChatMessages(chatID, limit, offset int, userID string) ([]*
 	}
 
 	return messages, nil
+}
+
+func (s *service) EditMessage(messageID int, text, userID string) error {
+	c, cancel := context.WithTimeout(context.Background(), s.timeout)
+	defer cancel()
+
+	message, err := s.repo.GetMessageByID(c, messageID)
+	if err != nil {
+		return err
+	}
+
+	err = s.repo.CheckAuthorMessage(c, message.Id, userID)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.EditTextMessage(c, message.Id, text)
+}
+
+func (s *service) DeleteMessage(messageID int, userID string) error {
+	c, cancel := context.WithTimeout(context.Background(), s.timeout)
+	defer cancel()
+
+	message, err := s.repo.GetMessageByID(c, messageID)
+	if err != nil {
+		return err
+	}
+
+	err = s.repo.CheckChatMember(c, message.ChatID, userID)
+	if err != nil {
+		s.logger.Error(err)
+		return err
+	}
+
+	return s.repo.DeleteMessage(c, message.Id)
 }
