@@ -42,7 +42,14 @@ type Repository interface {
 func (r *repository) NewMessage(ctx context.Context, message *Message) (*Message, error) {
 	query := "INSERT INTO messages (chat_id ,sender_id, text, time, reply) VALUES ($1, $2, $3, $4, $5) RETURNING id;" //RETURNING
 
-	row := r.DB.QueryRowContext(ctx, query, message.ChatID, message.Sender, message.Text, message.Time, message.Reply)
+	var row *sql.Row
+
+	if message.Reply == 0 {
+		query = "INSERT INTO messages (chat_id ,sender_id, text, time) VALUES ($1, $2, $3, $4) RETURNING id;"
+		row = r.DB.QueryRowContext(ctx, query, message.ChatID, message.Sender, message.Text, message.Time)
+	} else {
+		row = r.DB.QueryRowContext(ctx, query, message.ChatID, message.Sender, message.Text, message.Time, message.Reply)
+	}
 
 	var idMes int
 
